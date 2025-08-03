@@ -1,85 +1,120 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
 import HelloWorld from './components/HelloWorld.vue'
+import LightningEffect from './components/LightningEffect.vue'
+import { Vue3Marquee } from 'vue3-marquee'
+
+const lightningRef = ref(null)
+const audioRef = ref(null)
+
+// 오디오 재생 함수
+const playAudio = () => {
+  if (audioRef.value) {
+    try {
+      // 현재 재생 중이면 처음부터 다시 재생
+      audioRef.value.currentTime = 0
+      audioRef.value.play()
+      console.log('오디오 재생 시작')
+    } catch (error) {
+      console.error('오디오 재생 실패:', error)
+    }
+  }
+}
+
+// 번개 생성 이벤트 리스너
+const handleCreateLightning = (event) => {
+  if (lightningRef.value) {
+    lightningRef.value.createLightningAt(event.detail.x, event.detail.y)
+    // 번개와 함께 오디오 재생
+    playAudio()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('createLightning', handleCreateLightning)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('createLightning', handleCreateLightning)
+})
 </script>
 
 <template>
   <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
+    <Vue3Marquee :direction="'left'" :duration="300" class="marquee" gap="10">
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+      <span>I AM ENOUGH AS I AM. I AM A RICH MAN. </span>
+    </Vue3Marquee>
   </header>
-
   <RouterView />
+  <LightningEffect ref="lightningRef" />
+
+  <!-- 숨겨진 오디오 태그 -->
+  <audio ref="audioRef" preload="auto" style="display: none">
+    <source src="/src/assets/richman.wav" type="audio/wav" />
+    브라우저가 오디오를 지원하지 않습니다.
+  </audio>
+  <div class="texts">
+    <img src="/texts.png" alt="" />
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+<style>
+body {
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: fixed;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+html {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 </style>

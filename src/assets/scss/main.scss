@@ -1,0 +1,167 @@
+@import url('https://use.typekit.net/nsg8bqm.css');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Acumin-variable', sans-serif;
+  font-size: 40px;
+  font-variation-settings:
+    'slnt' 0,
+    'wdth' 50,
+    'wght' 800;
+  background-image: url('/background.jpg');
+}
+
+#lightning-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* 마우스 이벤트를 아래 레이어로 통과시킴 */
+  z-index: 9999; /* 최상단 레이어 */
+  background: transparent;
+}
+
+#lightning-container canvas {
+  background: transparent !important;
+}
+
+.richman {
+  position: fixed;
+  z-index: -1;
+  height: auto;
+  left: 0;
+  top: 0;
+  display: flex;
+  justify-content: center;
+  img {
+    width: 70%;
+    height: auto;
+    object-fit: cover;
+  }
+}
+
+.aespa-logo {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 12%;
+  height: auto;
+  img {
+    width: 100%;
+    height: auto;
+  }
+}
+
+.marquee {
+  color: black;
+  background-color: red;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 0;
+  font-size: calc(100vw * 21 / 1440);
+  overflow: hidden;
+  span {
+    margin-right: 0.7vw;
+  }
+}
+
+.thunder {
+  pointer-events: none; /* 클릭/터치 이벤트 무시 */
+  opacity: 1; /* 항상 보임 */
+  img {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 10000; /* 가장 위에 위치 */
+    height: 100%;
+    object-fit: contain;
+    touch-action: none;
+    pointer-events: none; /* 이미지도 클릭/터치 이벤트 무시 */
+  }
+}
+
+.texts {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+  img {
+    width: 100%;
+  }
+}
+
+.mobile {
+  display: none;
+}
+
+@media (aspect-ratio < 1/1) {
+  body {
+    background-image: url('/background-mobile.jpg');
+  }
+  .vue3-marquee.marquee {
+    display: none !important;
+  }
+  .richman img {
+    width: 60%;
+  }
+  .aespa-logo {
+    width: 10%;
+  }
+  .mobile {
+    display: block;
+  }
+  .texts {
+    display: none;
+  }
+  .texts-mobile {
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none;
+    img {
+      width: 100%;
+      height: auto;
+      max-width: 600px;
+    }
+  }
+  .thunder {
+    display: none;
+  }
+
+  .title {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    z-index: 3;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    padding-top: 20px;
+    img {
+      width: 95%;
+      height: auto;
+      max-width: 600px;
+    }
+  }
+
+  canvas {
+    position: fixed;
+    bottom: -15vw;
+    z-index: 9;
+    height: calc(100vh + 15vw) !important; /* 높이를 늘려서 위쪽이 잘리지 않도록 */
+  }
+}

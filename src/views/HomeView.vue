@@ -1,9 +1,9 @@
 <script setup>
-import TheWelcome from '../components/TheWelcome.vue'
+import theGuitar from '../components/TheGuitar.vue'
 </script>
 
 <template>
   <main>
-    <TheWelcome />
+    <theGuitar />
   </main>
 </template>
