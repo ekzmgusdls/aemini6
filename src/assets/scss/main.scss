@@ -93,7 +93,8 @@ body {
   bottom: 0;
   left: 0;
   width: 100%;
-  z-index: -1;
+  z-index: 0;
+  pointer-events: none;
   img {
     width: 100%;
   }
@@ -101,6 +102,15 @@ body {
 
 .mobile {
   display: none;
+}
+
+.link-box {
+  position: fixed;
+  left: 2vw;
+  bottom: 1.5vw;
+  width: 9.5vw;
+  height: auto;
+  aspect-ratio: 2900 /1700;
 }
 
 @media (aspect-ratio < 1/1) {
@@ -129,11 +139,12 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    pointer-events: none;
+    max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
     img {
       width: 100%;
       height: auto;
-      max-width: 600px;
     }
   }
   .thunder {
@@ -163,5 +174,22 @@ body {
     bottom: -15vw;
     z-index: 9;
     height: calc(100vh + 15vw) !important; /* 높이를 늘려서 위쪽이 잘리지 않도록 */
+  }
+
+  .link-box {
+    left: auto;
+    position: absolute;
+    left: 2%;
+    bottom: 1%;
+    width: 11%;
+    top: auto;
+    // background-color: red;
+    &--pc {
+      display: none;
+    }
+  }
+
+  .link-box-clone {
+    z-index: 999;
   }
 }

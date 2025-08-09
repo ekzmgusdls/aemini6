@@ -22,6 +22,7 @@ onMounted(async () => {
   animate()
   setupRaycaster()
   setupLightningListeners() // 번개 이벤트 리스너 설정
+  linkBox()
 })
 
 onUnmounted(() => {
@@ -39,7 +40,49 @@ onUnmounted(() => {
   if (lightningStartHandler) {
     window.removeEventListener('createLightning', lightningStartHandler)
   }
+
+  // 복제된 link-box 정리
+  const clonedBox = document.querySelector('body .link-box-clone')
+  if (clonedBox) {
+    clonedBox.remove()
+  }
 })
+
+function linkBox() {
+  let linkbox = document.querySelector('.texts-mobile .link-box')
+
+  if (!linkbox) return // linkbox가 없으면 종료
+
+  let clonedBox = document.querySelector('body .link-box-clone')
+
+  // 복제본이 없으면 새로 생성
+  if (!clonedBox) {
+    clonedBox = linkbox.cloneNode(true)
+    clonedBox.classList.remove('link-box')
+    clonedBox.classList.add('link-box-clone')
+    document.querySelector('main').appendChild(clonedBox)
+  }
+
+  // linkbox 위치 계산
+  const rect = linkbox.getBoundingClientRect()
+  const { left, bottom, width, height } = rect
+
+  console.log('링크 박스 위치:', {
+    left: left,
+    bottom: bottom,
+    width: width,
+    height: height,
+  })
+
+  // 개별 CSS 속성으로 설정 (동적 업데이트 가능)
+  clonedBox.style.position = 'fixed'
+  clonedBox.style.left = `${left}px`
+  clonedBox.style.top = `${bottom - height}px`
+  clonedBox.style.width = `${width}px`
+  clonedBox.style.height = `${height}px`
+  clonedBox.style.zIndex = '9999'
+  clonedBox.style.pointerEvents = 'auto'
+}
 
 const initThreeJS = async () => {
   // Scene 생성
@@ -209,7 +252,7 @@ const loadGuitar = async () => {
     })
 
     // 씬에 환경맵 적용
-    scene.environment = envMapTexture
+    // scene.environment = envMapTexture
     scene.background = null // 배경은 투명하게 유지
   } catch (error) {
     console.warn('HDR 환경맵을 사용할 수 없습니다. 기본 조명을 사용합니다.')
@@ -363,6 +406,8 @@ const handleResize = () => {
       : (camera.zoom = 1.7) // 가로가 더 긴 화면에서는 줌을 늘림
     camera.updateProjectionMatrix()
     renderer.render(scene, camera) // 화면 크기 변경 시 다시 렌더링
+
+    linkBox()
   }
 }
 
@@ -462,16 +507,23 @@ const onCanvasClick = (event) => {
       }
     }
 
-    // 헬퍼였다면 그 정보도 출력
-    if (targetIndex > 0) {
-    }
+    // 클릭된 객체 이름 로그 출력
+    console.log('클릭된 객체:', targetObject.name)
 
-    // Main-PBR 객체를 클릭했을 때 번개 생성
-    if (targetObject.name === 'Neck_front' || targetObject.name === 'Line') {
+    // Main-PBR 객체를 클릭했을 때 번개 생성 (조건을 더 넓게)
+    if (
+      targetObject.name === 'Neck_front' ||
+      targetObject.name === 'Line' ||
+      targetObject.name.includes('guitar') ||
+      targetObject.parent?.name === 'guitar_main'
+    ) {
       // 번개 개수 제한 확인
       if (activeLightningCount >= maxLightningCount) {
+        console.log('번개 개수 제한에 도달했습니다.')
         return targetObject.name || 'unnamed'
       }
+
+      console.log('번개 생성 이벤트 발생:', event.clientX, event.clientY)
 
       // 부모 컴포넌트에 번개 생성 이벤트 전송
       // 클릭한 화면 좌표를 번개 생성 위치로 사용
@@ -482,6 +534,8 @@ const onCanvasClick = (event) => {
         },
       })
       window.dispatchEvent(lightningEvent)
+    } else {
+      console.log('번개 생성 조건에 맞지 않는 객체:', targetObject.name)
     }
 
     // 객체 이름 반환 (콘솔과 함수 반환값 모두)
@@ -504,7 +558,8 @@ const onCanvasClick = (event) => {
       <img src="/title.png" alt="" />
     </div>
     <div class="texts-mobile">
-      <img src="/texts-mobile-1.png" alt="" />
+      <a class="link-box" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
+      <img src="/texts-mobile.png" alt="" />
     </div>
   </div>
 
@@ -512,6 +567,10 @@ const onCanvasClick = (event) => {
   <div v-show="!isLoading" class="guitar-container">
     <canvas ref="canvasRef" class="guitar-canvas"></canvas>
   </div>
+  <div class="texts">
+    <img src="/texts.png" alt="" />
+  </div>
+  <a class="link-box link-box--pc" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
 </template>
 
 <style scoped lang="scss">
