@@ -559,7 +559,7 @@ const onCanvasClick = (event) => {
     </div>
     <div class="texts-mobile">
       <a class="link-box" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
-      <img src="/texts-mobile.png" alt="" />
+      <img src="/texts-mobile-link.png" alt="" />
     </div>
   </div>
 
@@ -568,7 +568,7 @@ const onCanvasClick = (event) => {
     <canvas ref="canvasRef" class="guitar-canvas"></canvas>
   </div>
   <div class="texts">
-    <img src="/texts.png" alt="" />
+    <img src="/texts-link.png" alt="" />
   </div>
   <a class="link-box link-box--pc" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
 </template>
