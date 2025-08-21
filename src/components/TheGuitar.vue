@@ -17,12 +17,25 @@ const isLoading = ref(true) // 모델 로딩 상태
 let myguitar = null
 
 onMounted(async () => {
+  // TheGuitar가 활성화된 동안만 배경 적용
+  const prevBg = document.body.style.backgroundImage
+  const applyBg = () => {
+    document.body.style.backgroundImage = "url('/background.jpg')"
+  }
+  applyBg()
+  const resizeBgHandler = () => applyBg()
+  window.addEventListener('resize', resizeBgHandler)
+
   await initThreeJS()
   await loadGuitar()
   animate()
   setupRaycaster()
   setupLightningListeners() // 번개 이벤트 리스너 설정
   linkBox()
+
+  // 언마운트 시 복원하도록 전역에 저장
+  window.__theGuitarPrevBg = prevBg
+  window.__theGuitarResizeBgHandler = resizeBgHandler
 })
 
 onUnmounted(() => {
@@ -45,6 +58,18 @@ onUnmounted(() => {
   const clonedBox = document.querySelector('body .link-box-clone')
   if (clonedBox) {
     clonedBox.remove()
+  }
+
+  // 배경 원복 및 리스너 제거
+  if (window.__theGuitarResizeBgHandler) {
+    window.removeEventListener('resize', window.__theGuitarResizeBgHandler)
+    window.__theGuitarResizeBgHandler = null
+  }
+  if (typeof window.__theGuitarPrevBg !== 'undefined') {
+    document.body.style.backgroundImage = window.__theGuitarPrevBg || ''
+    delete window.__theGuitarPrevBg
+  } else {
+    document.body.style.backgroundImage = ''
   }
 })
 
