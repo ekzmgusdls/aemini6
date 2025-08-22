@@ -11,66 +11,12 @@ let renderer, scene, camera, controls, model
 let raycaster, mouse
 let baseRotY = 0 // 모델 기본 Y 회전값 보관
 
-// slides: 각 폴더(예: 25, 26)의 이미지 URL 목록과 video.txt의 라인들을 담음
-const slides = ref([])
-let selectedSlide = ref(null)
-// 빌드 타임에 src/slides/*/* 이미지를 수집하고, 각 폴더의 video.txt(raw)를 읽어 배열 구성
-function buildSlides() {
-  // 이미지 수집 (png/jpg/jpeg/gif/webp/avif), 값은 URL 문자열
-  const imageMods = import.meta.glob('@/slides/*/*.{png,jpg,jpeg,gif,webp,avif}', {
-    eager: true,
-    import: 'default',
-  })
-  // video.txt를 raw 텍스트로 수집
-  const videoMods = import.meta.glob('@/slides/*/video.txt', {
-    eager: true,
-    as: 'raw',
-  })
-
-  const byFolder = new Map()
-
-  // 이미지들을 폴더별로 모으기
-  for (const [path, url] of Object.entries(imageMods)) {
-    const m = path.match(/slides\/([^/]+)\//)
-    if (!m) continue
-    const folder = m[1]
-    const entry = byFolder.get(folder) || { id: folder, images: [], videos: [] }
-    entry.images.push({ url, filename: path.split('/').pop() || '' })
-    byFolder.set(folder, entry)
-  }
-
-  // 비디오 텍스트를 폴더별로 파싱하여 라인 배열로 저장
-  for (const [path, raw] of Object.entries(videoMods)) {
-    const m = path.match(/slides\/([^/]+)\//)
-    if (!m) continue
-    const folder = m[1]
-    const entry = byFolder.get(folder) || { id: folder, images: [], videos: [] }
-    const lines = String(raw)
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-    entry.videos = lines
-    byFolder.set(folder, entry)
-  }
-
-  // 정렬: 폴더명 자연 정렬, 이미지 파일명도 정렬 후 URL 배열로 치환
-  const arr = Array.from(byFolder.values()).sort((a, b) =>
-    a.id.localeCompare(b.id, undefined, { numeric: true }),
-  )
-  arr.forEach((e) => {
-    e.images.sort((a, b) => a.filename.localeCompare(b.filename, undefined, { numeric: true }))
-    e.images = e.images.map((i) => i.url)
-  })
-  return arr
-}
-
 onMounted(async () => {
   init()
   await loadModel()
   // 현재 카메라 각도 기준으로 좌우 ±10도만 회전 가능 + 수직 회전 잠금
   limitOrbitRange(20)
   // 슬라이드 데이터 구성
-  slides.value = buildSlides()
 
   animate()
   window.addEventListener('resize', onResize)
@@ -234,7 +180,6 @@ function onCanvasClick(event) {
       const slide = slides.value.find((s) => s.id === '26')
       if (slide) {
         selectedSlide.value = slide
-        console.log(selectedSlide.value)
       }
     }
   }

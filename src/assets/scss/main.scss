@@ -103,12 +103,25 @@ html #lightning-container {
 }
 
 .link-box {
+  cursor: pointer;
+}
+
+.link-box-left {
   position: fixed;
   left: 2vw;
   bottom: 1.5vw;
   width: 9.5vw;
   height: auto;
   aspect-ratio: 2900 /1700;
+}
+
+.link-box-right {
+  position: fixed;
+  right: 1.3vw;
+  bottom: 1.7vw;
+  width: 10.5vw;
+  height: auto;
+  aspect-ratio: 2900 /1250;
 }
 
 .jacket-view {
@@ -195,21 +208,29 @@ html #lightning-container {
     z-index: 9;
     height: calc(100vh + 15vw) !important; /* 높이를 늘려서 위쪽이 잘리지 않도록 */
   }
+  .link-box--pc {
+    display: none;
+  }
 
-  .link-box {
+  .link-box-left {
     left: auto;
     position: absolute;
     left: 2%;
     bottom: 1%;
     width: 11%;
     top: auto;
-    // background-color: red;
-    &--pc {
-      display: none;
-    }
+  }
+
+  .link-box-right {
+    right: auto;
+    position: absolute;
+    right: 1.5%;
+    bottom: 1%;
+    width: 14%;
+    top: auto;
   }
 
   .link-box-clone {
-    z-index: 999;
+    z-index: 1;
   }
 }

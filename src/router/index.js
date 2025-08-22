@@ -3,13 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // {
+    //   path: '/jacket',
+    //   name: 'jacket',
+    //   component: () => import('../views/JacketView.vue'),
+    // },
     {
       path: '/',
-      name: 'jacket',
-      component: () => import('../views/JacketView.vue'),
-    },
-    {
-      path: '/guitar',
       name: 'guitar',
       // route level code-splitting
       // this generates a separate chunk (Guitaer.[hash].js) for this route

@@ -5,6 +5,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 
+import ImgPopup from './ImgPopup.vue'
+
 const canvasRef = ref(null)
 let scene, camera, renderer, controls, guitar
 let raycaster, mouse
@@ -16,11 +18,64 @@ const maxLightningCount = 3 // 최대 동시 번개 개수
 const isLoading = ref(true) // 모델 로딩 상태
 let myguitar = null
 
+// slides: 각 폴더(예: 25, 26)의 이미지 URL 목록과 video.txt의 라인들을 담음
+const slides = ref([])
+let selectedSlide = ref(null)
+// 빌드 타임에 src/slides/*/* 이미지를 수집하고, 각 폴더의 video.txt(raw)를 읽어 배열 구성
+function buildSlides() {
+  // 이미지 수집 (png/jpg/jpeg/gif/webp/avif), 값은 URL 문자열
+  const imageMods = import.meta.glob('@/slides/*/*.{png,jpg,jpeg,gif,webp,avif}', {
+    eager: true,
+    import: 'default',
+  })
+  // video.txt를 raw 텍스트로 수집
+  const videoMods = import.meta.glob('@/slides/*/video.txt', {
+    eager: true,
+    as: 'raw',
+  })
+
+  const byFolder = new Map()
+
+  // 이미지들을 폴더별로 모으기
+  for (const [path, url] of Object.entries(imageMods)) {
+    const m = path.match(/slides\/([^/]+)\//)
+    if (!m) continue
+    const folder = m[1]
+    const entry = byFolder.get(folder) || { id: folder, images: [], videos: [] }
+    entry.images.push({ url, filename: path.split('/').pop() || '' })
+    byFolder.set(folder, entry)
+  }
+
+  // 비디오 텍스트를 폴더별로 파싱하여 라인 배열로 저장
+  for (const [path, raw] of Object.entries(videoMods)) {
+    const m = path.match(/slides\/([^/]+)\//)
+    if (!m) continue
+    const folder = m[1]
+    const entry = byFolder.get(folder) || { id: folder, images: [], videos: [] }
+    const lines = String(raw)
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    entry.videos = lines
+    byFolder.set(folder, entry)
+  }
+
+  // 정렬: 폴더명 자연 정렬, 이미지 파일명도 정렬 후 URL 배열로 치환
+  const arr = Array.from(byFolder.values()).sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true }),
+  )
+  arr.forEach((e) => {
+    e.images.sort((a, b) => a.filename.localeCompare(b.filename, undefined, { numeric: true }))
+    e.images = e.images.map((i) => i.url)
+  })
+  return arr
+}
+
 onMounted(async () => {
   // TheGuitar가 활성화된 동안만 배경 적용
   const prevBg = document.body.style.backgroundImage
   const applyBg = () => {
-    document.body.style.backgroundImage = "url('/background.jpg')"
+    document.body.style.backgroundImage = "url('./background.jpg')"
   }
   applyBg()
   const resizeBgHandler = () => applyBg()
@@ -32,7 +87,7 @@ onMounted(async () => {
   setupRaycaster()
   setupLightningListeners() // 번개 이벤트 리스너 설정
   linkBox()
-
+  slides.value = buildSlides()
   // 언마운트 시 복원하도록 전역에 저장
   window.__theGuitarPrevBg = prevBg
   window.__theGuitarResizeBgHandler = resizeBgHandler
@@ -73,40 +128,63 @@ onUnmounted(() => {
   }
 })
 
+// popup trigger
+const popupTrigger = (index) => {
+  // 팝업 로직 구현
+
+  const indexStr = String(index)
+
+  const slide = slides.value.find((s) => s.id == indexStr)
+  if (slide) {
+    selectedSlide.value = slide
+  }
+}
+
 function linkBox() {
-  let linkbox = document.querySelector('.texts-mobile .link-box')
+  let linkboxLeft = document.querySelector('.texts-mobile .link-box-left')
+  let linkboxRight = document.querySelector('.texts-mobile .link-box-right')
 
-  if (!linkbox) return // linkbox가 없으면 종료
+  if (!linkboxLeft || !linkboxRight) return // linkbox가 없으면 종료
 
-  let clonedBox = document.querySelector('body .link-box-clone')
+  let clonedBoxLeft = document.querySelector('body .link-box-clone.link-box-left')
+  let clonedBoxRight = document.querySelector('body .link-box-clone.link-box-right')
 
   // 복제본이 없으면 새로 생성
-  if (!clonedBox) {
-    clonedBox = linkbox.cloneNode(true)
-    clonedBox.classList.remove('link-box')
-    clonedBox.classList.add('link-box-clone')
-    document.querySelector('main').appendChild(clonedBox)
+  if (!clonedBoxLeft || !clonedBoxRight) {
+    clonedBoxLeft = linkboxLeft.cloneNode(true)
+    clonedBoxRight = linkboxRight.cloneNode(true)
+    clonedBoxLeft.classList.add('link-box-clone')
+    document.querySelector('main').appendChild(clonedBoxLeft)
+    clonedBoxRight.classList.add('link-box-clone')
+    document.querySelector('main').appendChild(clonedBoxRight)
+  }
+
+  // 클론된 오른쪽 박스에 popupTrigger(25) 클릭 바인딩 (중복 방지)
+  if (clonedBoxRight && !clonedBoxRight.dataset.popupBound) {
+    clonedBoxRight.addEventListener('click', () => popupTrigger(25))
+    clonedBoxRight.dataset.popupBound = '1'
   }
 
   // linkbox 위치 계산
-  const rect = linkbox.getBoundingClientRect()
-  const { left, bottom, width, height } = rect
-
-  console.log('링크 박스 위치:', {
-    left: left,
-    bottom: bottom,
-    width: width,
-    height: height,
-  })
+  const rectLeft = linkboxLeft.getBoundingClientRect()
+  const rectRight = linkboxRight.getBoundingClientRect()
 
   // 개별 CSS 속성으로 설정 (동적 업데이트 가능)
-  clonedBox.style.position = 'fixed'
-  clonedBox.style.left = `${left}px`
-  clonedBox.style.top = `${bottom - height}px`
-  clonedBox.style.width = `${width}px`
-  clonedBox.style.height = `${height}px`
-  clonedBox.style.zIndex = '9999'
-  clonedBox.style.pointerEvents = 'auto'
+  clonedBoxLeft.style.position = 'fixed'
+  clonedBoxLeft.style.left = `${rectLeft.left}px`
+  clonedBoxLeft.style.top = `${rectLeft.bottom - rectLeft.height}px`
+  clonedBoxLeft.style.width = `${rectLeft.width}px`
+  clonedBoxLeft.style.height = `${rectLeft.height}px`
+  clonedBoxLeft.style.zIndex = '99'
+  clonedBoxLeft.style.pointerEvents = 'auto'
+
+  clonedBoxRight.style.position = 'fixed'
+  clonedBoxRight.style.left = `${rectRight.left}px`
+  clonedBoxRight.style.top = `${rectRight.bottom - rectRight.height}px`
+  clonedBoxRight.style.width = `${rectRight.width}px`
+  clonedBoxRight.style.height = `${rectRight.height}px`
+  clonedBoxRight.style.zIndex = '99'
+  clonedBoxRight.style.pointerEvents = 'auto'
 }
 
 const initThreeJS = async () => {
@@ -532,9 +610,6 @@ const onCanvasClick = (event) => {
       }
     }
 
-    // 클릭된 객체 이름 로그 출력
-    console.log('클릭된 객체:', targetObject.name)
-
     // Main-PBR 객체를 클릭했을 때 번개 생성 (조건을 더 넓게)
     if (
       targetObject.name === 'Neck_front' ||
@@ -544,11 +619,8 @@ const onCanvasClick = (event) => {
     ) {
       // 번개 개수 제한 확인
       if (activeLightningCount >= maxLightningCount) {
-        console.log('번개 개수 제한에 도달했습니다.')
         return targetObject.name || 'unnamed'
       }
-
-      console.log('번개 생성 이벤트 발생:', event.clientX, event.clientY)
 
       // 부모 컴포넌트에 번개 생성 이벤트 전송
       // 클릭한 화면 좌표를 번개 생성 위치로 사용
@@ -560,7 +632,6 @@ const onCanvasClick = (event) => {
       })
       window.dispatchEvent(lightningEvent)
     } else {
-      console.log('번개 생성 조건에 맞지 않는 객체:', targetObject.name)
     }
 
     // 객체 이름 반환 (콘솔과 함수 반환값 모두)
@@ -583,8 +654,9 @@ const onCanvasClick = (event) => {
       <img src="/title.png" alt="" />
     </div>
     <div class="texts-mobile">
-      <a class="link-box" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
+      <a class="link-box link-box-left" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
       <img src="/texts-mobile-link.png" alt="" />
+      <div class="link-box link-box-right" @click="popupTrigger(25)"></div>
     </div>
   </div>
 
@@ -595,7 +667,17 @@ const onCanvasClick = (event) => {
   <div class="texts">
     <img src="/texts-link.png" alt="" />
   </div>
-  <a class="link-box link-box--pc" href="https://aespa.lnk.to/RichMan" target="_blank"> </a>
+  <a
+    class="link-box link-box-left link-box--pc"
+    href="https://aespa.lnk.to/RichMan"
+    target="_blank"
+  >
+  </a>
+  <a class="link-box link-box-right link-box--pc" @click="popupTrigger(25)" target="_blank"> </a>
+
+  <Transition name="fade">
+    <ImgPopup v-if="selectedSlide" :slide="selectedSlide" @close="selectedSlide = null" />
+  </Transition>
 </template>
 
 <style scoped lang="scss">

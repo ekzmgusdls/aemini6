@@ -16,7 +16,6 @@ const playAudio = () => {
       // 현재 재생 중이면 처음부터 다시 재생
       audioRef.value.currentTime = 0
       audioRef.value.play()
-      console.log('오디오 재생 시작')
     } catch (error) {
       console.error('오디오 재생 실패:', error)
     }
