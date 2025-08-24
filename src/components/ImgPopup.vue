@@ -222,12 +222,12 @@ const closePopup = () => {
     </Swiper>
     <div class="close" @click="closePopup"><IconClose /></div>
     <!-- 커스텀 네비게이션 버튼 -->
-    <div class="swiper-button-prev-custom">
+    <!-- <div class="swiper-button-prev-custom">
       <IconPrev />
     </div>
     <div class="swiper-button-next-custom">
       <IconNext />
-    </div>
+    </div> -->
   </div>
 </template>
 <style scoped lang="scss">
