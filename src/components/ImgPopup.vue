@@ -6,6 +6,11 @@ import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 
+// import icon - close,next,prev
+import IconClose from './icons/IconClose.vue'
+import IconNext from './icons/IconNext.vue'
+import IconPrev from './icons/IconPrev.vue'
+
 const emit = defineEmits()
 
 const props = defineProps({
@@ -183,7 +188,10 @@ const closePopup = () => {
       class="images"
       :modules="[Navigation, Pagination, Keyboard]"
       :slides-per-view="1"
-      :navigation="true"
+      :navigation="{
+        nextEl: '.swiper-button-next-custom',
+        prevEl: '.swiper-button-prev-custom',
+      }"
       :keyboard="{ enabled: true }"
       @swiper="onSwiper"
       @slideChange="onSlideChange"
@@ -212,7 +220,14 @@ const closePopup = () => {
         />
       </SwiperSlide>
     </Swiper>
-    <div class="close" @click="closePopup">CLOSE</div>
+    <div class="close" @click="closePopup"><IconClose /></div>
+    <!-- 커스텀 네비게이션 버튼 -->
+    <div class="swiper-button-prev-custom">
+      <IconPrev />
+    </div>
+    <div class="swiper-button-next-custom">
+      <IconNext />
+    </div>
   </div>
 </template>
 <style scoped lang="scss">
@@ -251,12 +266,43 @@ const closePopup = () => {
   .close {
     position: fixed;
     top: 20px;
-    right: 20px;
-    font-size: 20px;
-    color: white;
-    line-height: 1;
+    right: 25px;
     cursor: pointer;
     z-index: 999;
+    display: flex;
+  }
+
+  /* 커스텀 네비게이션 버튼 스타일 */
+  .swiper-button-next-custom,
+  .swiper-button-prev-custom {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.3s;
+
+    svg {
+      color: white;
+      width: 13px;
+      height: auto;
+      display: flex;
+    }
+  }
+
+  .swiper-button-next-custom {
+    right: 25px;
+  }
+
+  .swiper-button-prev-custom {
+    left: 25px;
+  }
+
+  .swiper-button-disabled {
+    opacity: 0.5;
   }
 
   .swiper {
@@ -289,29 +335,49 @@ const closePopup = () => {
     }
   }
   /* Style Swiper built-in navigation buttons (scoped safe) */
+  /* 기존 기본 Swiper 버튼 스타일을 숨깁니다 */
   :deep(.swiper-button-next),
   :deep(.swiper-button-prev) {
-    color: white;
-    border-radius: 50%;
-    /* center default ::after arrow */
-    display: flex;
-    align-items: center;
-    font-size: 20px;
-    justify-content: center;
-    &::before,
-    &::after {
-      content: '';
-    }
+    display: none;
   }
+}
 
-  :deep(.swiper-button-next) {
-    &::before {
-      content: 'NEXT';
+@media (aspect-ratio < 1/1) {
+  .img-popup {
+    .close {
+      top: 20px;
+      right: 20px;
+      svg {
+        width: 12px;
+        height: auto;
+      }
     }
-  }
-  :deep(.swiper-button-prev) {
-    &::before {
-      content: 'PREV';
+
+    /* 모바일 화면에서 네비게이션 버튼 크기 조정 */
+    .swiper-button-next-custom,
+    .swiper-button-prev-custom {
+      svg {
+        width: 12px;
+        height: auto;
+      }
+    }
+
+    .swiper-button-next-custom {
+      right: 20px;
+    }
+
+    .swiper-button-prev-custom {
+      left: 20px;
+    }
+
+    .swiper {
+      .video-wrapper {
+        padding: 10px;
+      }
+
+      img {
+        padding: 10px;
+      }
     }
   }
 }
