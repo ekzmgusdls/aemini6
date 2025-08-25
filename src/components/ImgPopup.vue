@@ -59,6 +59,7 @@ function appendYTParams(base) {
     rel: '0',
     enablejsapi: '1',
     playsinline: '1',
+    autoplay: '0', // 자동 재생 비활성화
   })
   return base.includes('?') ? `${base}&${params.toString()}` : `${base}?${params.toString()}`
 }
@@ -121,9 +122,8 @@ function initPlayers() {
     const player = new window.YT.Player(id, {
       events: {
         onReady: (e) => {
-          if (swiperRef.value && swiperRef.value.activeIndex === idx) {
-            safePlay(player)
-          }
+          // 초기화 시에는 자동으로 재생하지 않음
+          // 현재 슬라이드가 비디오인지 확인 후 playActiveVideo()에서 처리
         },
       },
       playerVars: { modestbranding: 1, rel: 0, controls: 1 },
@@ -138,6 +138,7 @@ function safePlay(p) {
     p.playVideo && p.playVideo()
   } catch (e) {}
 }
+
 function pauseAll() {
   players.value.forEach((p) => {
     try {
@@ -145,22 +146,55 @@ function pauseAll() {
     } catch (e) {}
   })
 }
-function playActiveVideo() {
-  if (!swiperRef.value) return
-  const idx = swiperRef.value.activeIndex
-  if (idx < videoEmbeds.value.length) {
-    const p = players.value[idx]
-    if (p) safePlay(p)
+
+// 현재 슬라이드가 비디오인지 확인하는 함수
+function isCurrentSlideVideo() {
+  if (!swiperRef.value) return false
+  // 이미지의 수를 구합니다
+  const imageCount = images.value.length
+  // 현재 활성화된 슬라이드의 인덱스
+  const activeIndex = swiperRef.value.activeIndex
+
+  // 활성화된 슬라이드의 인덱스가 이미지 수보다 크거나 같으면 비디오 슬라이드입니다
+  // 현재 슬라이드가 비디오인 경우 videoIndex는 0부터 시작하는 비디오 배열 내 인덱스
+  if (activeIndex >= imageCount) {
+    const videoIndex = activeIndex - imageCount
+    return videoIndex < videoEmbeds.value.length ? videoIndex : -1
   }
+
+  return -1 // 비디오가 아닌 경우 -1 반환
 }
+
+function playActiveVideo() {
+  const videoIndex = isCurrentSlideVideo()
+
+  // 현재 슬라이드가 비디오가 아니면 재생하지 않음
+  if (videoIndex === -1) return
+
+  // 비디오 슬라이드인 경우에만 재생
+  const player = players.value[videoIndex]
+  if (player) safePlay(player)
+}
+
 function onSwiper(swiper) {
   swiperRef.value = swiper
+  // 초기에 활성화된 슬라이드 확인 후 비디오일 경우만 재생
+  nextTick(() => {
+    playActiveVideo()
+  })
 }
+
 function onSlideChange(swiper) {
+  // 모든 비디오 일시 정지
   pauseAll()
-  if (swiper.activeIndex < videoEmbeds.value.length) {
-    const p = players.value[swiper.activeIndex]
-    p && safePlay(p)
+
+  // 현재 활성화된 슬라이드가 비디오인지 확인
+  const videoIndex = isCurrentSlideVideo()
+
+  // 비디오 슬라이드인 경우에만 재생
+  if (videoIndex !== -1 && videoIndex < players.value.length) {
+    const player = players.value[videoIndex]
+    if (player) safePlay(player)
   }
 }
 
@@ -196,6 +230,15 @@ const closePopup = () => {
       @swiper="onSwiper"
       @slideChange="onSlideChange"
     >
+      <SwiperSlide v-for="(image, index) in images" :key="'img-' + index">
+        <img
+          :src="image"
+          :class="{ 'is-loaded': loaded[index] }"
+          alt="Slide Image"
+          loading="lazy"
+          @load="onImgLoad(index)"
+        />
+      </SwiperSlide>
       <SwiperSlide v-for="(video, vIndex) in videoEmbeds" :key="'vid-' + vIndex">
         <div class="video-wrapper">
           <div class="ratio-16x9">
@@ -210,24 +253,15 @@ const closePopup = () => {
           </div>
         </div>
       </SwiperSlide>
-      <SwiperSlide v-for="(image, index) in images" :key="'img-' + index">
-        <img
-          :src="image"
-          :class="{ 'is-loaded': loaded[index] }"
-          alt="Slide Image"
-          loading="lazy"
-          @load="onImgLoad(index)"
-        />
-      </SwiperSlide>
     </Swiper>
     <div class="close" @click="closePopup"><IconClose /></div>
     <!-- 커스텀 네비게이션 버튼 -->
-    <!-- <div class="swiper-button-prev-custom">
+    <div class="swiper-button-prev-custom">
       <IconPrev />
     </div>
     <div class="swiper-button-next-custom">
       <IconNext />
-    </div> -->
+    </div>
   </div>
 </template>
 <style scoped lang="scss">
