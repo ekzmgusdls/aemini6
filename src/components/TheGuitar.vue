@@ -129,14 +129,28 @@ onUnmounted(() => {
 })
 
 // popup trigger
-const popupTrigger = (index) => {
+const popupTrigger = () => {
   // 팝업 로직 구현
+  console.log(slides.value)
+  const slide = slides.value
+  const slideImgs = []
+  if (slide && Array.isArray(slide)) {
+    // id 값이 숫자인 경우만 필터링 후 내림차순 정렬
+    const sorted = slide
+      .filter((e) => !isNaN(Number(e.id)))
+      .sort((a, b) => Number(b.id) - Number(a.id))
+    sorted.forEach((e) => {
+      if (Array.isArray(e.images)) {
+        slideImgs.push(...e.images)
+      }
+    })
+  }
 
-  const indexStr = String(index)
-
-  const slide = slides.value.find((s) => s.id == indexStr)
   if (slide) {
-    selectedSlide.value = slide
+    selectedSlide.value = {
+      images: slideImgs,
+      videos: ['https://youtu.be/7aQ2uxgJbnY'],
+    }
   }
 }
 
@@ -161,7 +175,7 @@ function linkBox() {
 
   // 클론된 오른쪽 박스에 popupTrigger(25) 클릭 바인딩 (중복 방지)
   if (clonedBoxRight && !clonedBoxRight.dataset.popupBound) {
-    clonedBoxRight.addEventListener('click', () => popupTrigger(25))
+    clonedBoxRight.addEventListener('click', () => popupTrigger())
     clonedBoxRight.dataset.popupBound = '1'
   }
 

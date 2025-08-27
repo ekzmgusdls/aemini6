@@ -31,19 +31,8 @@ const handleCreateLightning = (event) => {
   }
 }
 
-// 리사이즈 이벤트 핸들러
-const handleResize = () => {
-  createFixedLinkBox()
-}
-
 onMounted(() => {
   window.addEventListener('createLightning', handleCreateLightning)
-  window.addEventListener('resize', handleResize)
-
-  // DOM이 준비된 후 실행
-  nextTick(() => {
-    createFixedLinkBox()
-  })
 })
 
 onUnmounted(() => {
