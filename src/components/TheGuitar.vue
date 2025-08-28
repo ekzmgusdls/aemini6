@@ -131,7 +131,6 @@ onUnmounted(() => {
 // popup trigger
 const popupTrigger = () => {
   // 팝업 로직 구현
-  console.log(slides.value)
   const slide = slides.value
   const slideImgs = []
   if (slide && Array.isArray(slide)) {
@@ -149,7 +148,7 @@ const popupTrigger = () => {
   if (slide) {
     selectedSlide.value = {
       images: slideImgs,
-      videos: ['https://youtu.be/7aQ2uxgJbnY'],
+      videos: ['https://youtu.be/Od5eCT72uoI', 'https://youtu.be/7aQ2uxgJbnY'],
     }
   }
 }
@@ -688,7 +687,6 @@ const onCanvasClick = (event) => {
   >
   </a>
   <a class="link-box link-box-right link-box--pc" @click="popupTrigger(25)" target="_blank"> </a>
-
   <Transition name="fade">
     <ImgPopup v-if="selectedSlide" :slide="selectedSlide" @close="selectedSlide = null" />
   </Transition>

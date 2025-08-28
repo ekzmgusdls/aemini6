@@ -115,20 +115,26 @@ function initPlayers() {
     } catch (e) {}
   })
   players.value = []
-  videoEmbeds.value.forEach((_, idx) => {
-    const id = `yt-iframe-${idx}`
-    const el = document.getElementById(id)
-    if (!el) return
-    const player = new window.YT.Player(id, {
-      events: {
-        onReady: (e) => {
-          // 초기화 시에는 자동으로 재생하지 않음
-          // 현재 슬라이드가 비디오인지 확인 후 playActiveVideo()에서 처리
+  let readyCount = 0
+  nextTick(() => {
+    videoEmbeds.value.forEach((_, idx) => {
+      const id = `yt-iframe-${idx}`
+      const el = document.getElementById(id)
+      if (!el) return
+      const player = new window.YT.Player(id, {
+        events: {
+          onReady: (e) => {
+            players.value[idx] = player
+            readyCount++
+            // 모든 player가 준비되면 playActiveVideo 실행
+            if (readyCount === videoEmbeds.value.length) {
+              playActiveVideo()
+            }
+          },
         },
-      },
-      playerVars: { modestbranding: 1, rel: 0, controls: 1 },
+        playerVars: { modestbranding: 1, rel: 0, controls: 1 },
+      })
     })
-    players.value.push(player)
   })
 }
 
@@ -157,8 +163,15 @@ function isCurrentSlideVideo() {
 
   // 활성화된 슬라이드의 인덱스가 이미지 수보다 크거나 같으면 비디오 슬라이드입니다
   // 현재 슬라이드가 비디오인 경우 videoIndex는 0부터 시작하는 비디오 배열 내 인덱스
-  if (activeIndex >= imageCount) {
-    const videoIndex = activeIndex - imageCount
+  if (activeIndex >= imageCount || activeIndex == 0) {
+    let videoIndex = null
+    if (activeIndex == 0) {
+      videoIndex = 0
+    }
+
+    if (activeIndex > imageCount) {
+      videoIndex = videoEmbeds.value.length - 1
+    }
     return videoIndex < videoEmbeds.value.length ? videoIndex : -1
   }
 
@@ -167,31 +180,31 @@ function isCurrentSlideVideo() {
 
 function playActiveVideo() {
   const videoIndex = isCurrentSlideVideo()
-
   // 현재 슬라이드가 비디오가 아니면 재생하지 않음
   if (videoIndex === -1) return
 
-  // 비디오 슬라이드인 경우에만 재생
-  const player = players.value[videoIndex]
-  if (player) safePlay(player)
+  // YouTube Player가 iframe에 attach되기까지 약간의 지연이 있을 수 있으므로 nextTick으로 보장
+  nextTick(() => {
+    const player = players.value[videoIndex]
+    if (player) safePlay(player)
+    setTimeout(() => {
+      if (player) safePlay(player)
+    }, 1000) // 0.5초 후에 다시 시도
+
+    console.log(player, '왜 두번나와?')
+  })
 }
 
 function onSwiper(swiper) {
   swiperRef.value = swiper
-  // 초기에 활성화된 슬라이드 확인 후 비디오일 경우만 재생
-  nextTick(() => {
-    playActiveVideo()
-  })
+  // 초기에 활성화된 슬라이드가 비디오일 경우 강제로 재생 시도
 }
 
 function onSlideChange(swiper) {
   // 모든 비디오 일시 정지
   pauseAll()
-
   // 현재 활성화된 슬라이드가 비디오인지 확인
   const videoIndex = isCurrentSlideVideo()
-
-  // 비디오 슬라이드인 경우에만 재생
   if (videoIndex !== -1 && videoIndex < players.value.length) {
     const player = players.value[videoIndex]
     if (player) safePlay(player)
@@ -230,6 +243,20 @@ const closePopup = () => {
       @swiper="onSwiper"
       @slideChange="onSlideChange"
     >
+      <SwiperSlide>
+        <div class="video-wrapper">
+          <div class="ratio-16x9">
+            <iframe
+              :id="'yt-iframe-' + 0"
+              :src="videoEmbeds[0]"
+              title="YouTube video"
+              frameborder="0"
+              allow="autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </SwiperSlide>
       <SwiperSlide v-for="(image, index) in images" :key="'img-' + index">
         <img
           :src="image"
@@ -239,12 +266,12 @@ const closePopup = () => {
           @load="onImgLoad(index)"
         />
       </SwiperSlide>
-      <SwiperSlide v-for="(video, vIndex) in videoEmbeds" :key="'vid-' + vIndex">
+      <SwiperSlide>
         <div class="video-wrapper">
           <div class="ratio-16x9">
             <iframe
-              :id="'yt-iframe-' + vIndex"
-              :src="video"
+              :id="'yt-iframe-' + 1"
+              :src="videoEmbeds[1]"
               title="YouTube video"
               frameborder="0"
               allow="autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -357,12 +384,13 @@ const closePopup = () => {
       .ratio-16x9 {
         position: relative;
         width: 100%;
+        background: transparent;
         aspect-ratio: 16 / 9;
-        background: #000;
         iframe {
           position: absolute;
           inset: 0;
           width: 100%;
+          object-fit: contain;
           height: 100%;
         }
       }
@@ -411,6 +439,18 @@ const closePopup = () => {
 
       img {
         padding: 10px;
+      }
+    }
+  }
+}
+
+@media (aspect-ratio > 16/9) {
+  .img-popup {
+    .swiper {
+      .video-wrapper {
+        .ratio-16x9 {
+          height: 100%;
+        }
       }
     }
   }
