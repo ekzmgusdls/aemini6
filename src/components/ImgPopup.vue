@@ -1,4 +1,23 @@
 <script setup>
+const pageInput = ref(1)
+import { computed } from 'vue'
+// ...existing code...
+// 전체 슬라이드 개수
+const totalSlides = computed(() => images.value.length + videoEmbeds.value.length)
+
+// 현재 활성화된 슬라이드 인덱스 (1-based)
+const currentSlide = computed(() => {
+  if (!swiperRef.value) return 1
+  return swiperRef.value.activeIndex + 1
+})
+
+// 숫자 네비게이션 이동 함수
+function goToSlide(idx) {
+  if (swiperRef.value) {
+    swiperRef.value.slideTo(idx)
+    pageInput.value = swiperRef.value.activeIndex + 1
+  }
+}
 import { ref, defineEmits, watch, nextTick, onUnmounted } from 'vue'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Navigation, Pagination, Keyboard } from 'swiper/modules'
@@ -25,6 +44,7 @@ const loaded = ref([])
 const videoEmbeds = ref([])
 const players = ref([]) // YouTube player instances matching videoEmbeds order
 const swiperRef = ref(null)
+const isNavOn = ref(false)
 let ytApiPromise = null
 
 // props.slide.images 변경 시 이미지와 로딩 상태 초기화
@@ -85,7 +105,7 @@ watch(
     nextTick(async () => {
       await ensureYT()
       initPlayers()
-      playActiveVideo()
+      // playActiveVideo()
     })
   },
   { immediate: true },
@@ -128,7 +148,7 @@ function initPlayers() {
             readyCount++
             // 모든 player가 준비되면 playActiveVideo 실행
             if (readyCount === videoEmbeds.value.length) {
-              playActiveVideo()
+              // playActiveVideo()
             }
           },
         },
@@ -163,16 +183,8 @@ function isCurrentSlideVideo() {
 
   // 활성화된 슬라이드의 인덱스가 이미지 수보다 크거나 같으면 비디오 슬라이드입니다
   // 현재 슬라이드가 비디오인 경우 videoIndex는 0부터 시작하는 비디오 배열 내 인덱스
-  if (activeIndex >= imageCount || activeIndex == 0) {
-    let videoIndex = null
-    if (activeIndex == 0) {
-      videoIndex = 0
-    }
-
-    if (activeIndex > imageCount) {
-      videoIndex = videoEmbeds.value.length - 1
-    }
-    return videoIndex < videoEmbeds.value.length ? videoIndex : -1
+  if (swiperRef.value.slides[activeIndex].classList.contains('video-slide')) {
+    return activeIndex
   }
 
   return -1 // 비디오가 아닌 경우 -1 반환
@@ -180,9 +192,9 @@ function isCurrentSlideVideo() {
 
 function playActiveVideo() {
   const videoIndex = isCurrentSlideVideo()
+
   // 현재 슬라이드가 비디오가 아니면 재생하지 않음
   if (videoIndex === -1) return
-
   // YouTube Player가 iframe에 attach되기까지 약간의 지연이 있을 수 있으므로 nextTick으로 보장
   nextTick(() => {
     const player = players.value[videoIndex]
@@ -190,8 +202,6 @@ function playActiveVideo() {
     setTimeout(() => {
       if (player) safePlay(player)
     }, 1000) // 0.5초 후에 다시 시도
-
-    console.log(player, '왜 두번나와?')
   })
 }
 
@@ -205,7 +215,10 @@ function onSlideChange(swiper) {
   pauseAll()
   // 현재 활성화된 슬라이드가 비디오인지 확인
   const videoIndex = isCurrentSlideVideo()
-  if (videoIndex !== -1 && videoIndex < players.value.length) {
+  // 페이지 인디케이터 및 숫자 네비게이션 동기화
+  pageInput.value = swiper.activeIndex + 1
+  // .num-btn active는 currentSlide computed가 자동 반영
+  if (videoIndex !== -1) {
     const player = players.value[videoIndex]
     if (player) safePlay(player)
   }
@@ -243,7 +256,32 @@ const closePopup = () => {
       @swiper="onSwiper"
       @slideChange="onSlideChange"
     >
-      <SwiperSlide>
+      <!-- 숫자 네비게이션 -->
+      <div class="swiper-nav-toggler" @click="isNavOn = !isNavOn" :class="{ 'is-active': isNavOn }">
+        Navigation
+      </div>
+      <div class="swiper-number-nav" :class="{ 'is-active': isNavOn }">
+        <div
+          v-for="n in totalSlides"
+          :key="'num-nav-' + n"
+          :class="['num-btn', { active: pageInput === n }]"
+          @click="goToSlide(n - 1)"
+        >
+          {{ n }}
+        </div>
+      </div>
+      <template v-for="(image, index) in images" :key="'img-3-' + index">
+        <SwiperSlide v-if="index <= 2">
+          <img
+            :src="image"
+            :class="{ 'is-loaded': loaded[index] }"
+            alt="Slide Image"
+            loading="lazy"
+            @load="onImgLoad(index)"
+          />
+        </SwiperSlide>
+      </template>
+      <SwiperSlide class="video-slide">
         <div class="video-wrapper">
           <div class="ratio-16x9">
             <iframe
@@ -257,16 +295,18 @@ const closePopup = () => {
           </div>
         </div>
       </SwiperSlide>
-      <SwiperSlide v-for="(image, index) in images" :key="'img-' + index">
-        <img
-          :src="image"
-          :class="{ 'is-loaded': loaded[index] }"
-          alt="Slide Image"
-          loading="lazy"
-          @load="onImgLoad(index)"
-        />
-      </SwiperSlide>
-      <SwiperSlide>
+      <template v-for="(image, index) in images" :key="'img-2-' + index">
+        <SwiperSlide v-if="index > 2">
+          <img
+            :src="image"
+            :class="{ 'is-loaded': loaded[index] }"
+            alt="Slide Image"
+            loading="lazy"
+            @load="onImgLoad(index)"
+          />
+        </SwiperSlide>
+      </template>
+      <SwiperSlide class="video-slide">
         <div class="video-wrapper">
           <div class="ratio-16x9">
             <iframe
@@ -292,6 +332,55 @@ const closePopup = () => {
   </div>
 </template>
 <style scoped lang="scss">
+// 숫자 네비게이션 스타일
+.swiper-number-nav {
+  position: absolute;
+  left: 50%;
+  padding: 15px;
+  transform: translateX(-50%) translateY(100%);
+  display: flex;
+  gap: 8px;
+  z-index: 30;
+  width: 100%;
+  bottom: 0;
+  overflow: scroll;
+  transition: transform 0.2s;
+  &.is-active {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  .num-btn {
+    color: rgb(140, 140, 140);
+    border: none;
+    border-radius: 1px;
+    padding: 3px;
+    cursor: pointer;
+    font-size: 15px;
+    font-family: 'Acumin-variable', sans-serif;
+    font-weight: 550;
+    background: rgba(0, 0, 0, 1);
+    &.active {
+      background: white;
+      color: black;
+    }
+  }
+}
+
+.swiper-page-indicator {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  padding: 2px 10px;
+  font-size: 14px;
+  z-index: 30;
+}
 .images img {
   width: 150px;
   opacity: 0;
@@ -441,6 +530,20 @@ const closePopup = () => {
         padding: 10px;
       }
     }
+  }
+}
+
+.swiper-nav-toggler {
+  position: fixed;
+  bottom: 50px;
+  left: 15px;
+  z-index: 99;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 400;
+  color: gray;
+  &.is-active {
+    color: white;
   }
 }
 
