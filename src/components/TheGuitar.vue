@@ -28,8 +28,14 @@ function buildSlides() {
     eager: true,
     import: 'default',
   })
+
   // video.txt를 raw 텍스트로 수집
   const videoMods = import.meta.glob('@/slides/*/video.txt', {
+    eager: true,
+    as: 'raw',
+  })
+
+  const videoTypeMods = import.meta.glob('@/slides/*/video_type.txt', {
     eager: true,
     as: 'raw',
   })
@@ -57,6 +63,22 @@ function buildSlides() {
       .map((s) => s.trim())
       .filter(Boolean)
     entry.videos = lines
+    byFolder.set(folder, entry)
+  }
+
+  // 비디오 타입 텍스트를 폴더별로 파싱하여 라인 배열로 저장
+  for (const [path, raw] of Object.entries(videoTypeMods)) {
+    const m = path.match(/slides\/([^/]+)\//)
+    if (!m) continue
+    const folder = m[1]
+    const entry = byFolder.get(folder) || { id: folder, images: [], videos: [], videoType: [] }
+    const lines = String(raw)
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(',')
+
+    entry.videoType = lines
     byFolder.set(folder, entry)
   }
 
@@ -146,10 +168,11 @@ const popupTrigger = () => {
   }
 
   if (slide) {
-    selectedSlide.value = {
-      images: slideImgs,
-      videos: ['https://youtu.be/Od5eCT72uoI', 'https://youtu.be/7aQ2uxgJbnY'],
-    }
+    // selectedSlide.value = {
+    //   images: slideImgs,
+    //   videos: ['https://youtu.be/Od5eCT72uoI', 'https://youtu.be/7aQ2uxgJbnY'],
+    // }
+    selectedSlide.value = slide
   }
 }
 

@@ -22,4 +22,10 @@ html {
   padding: 0;
   min-height: 100vh;
 }
+
+::selection {
+  /* intentionally left blank to have no effect */
+  background: transparent;
+  color: inherit;
+}
 </style>

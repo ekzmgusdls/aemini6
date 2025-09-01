@@ -1,31 +1,11 @@
 <script setup>
-const pageInput = ref(1)
-import { computed } from 'vue'
-// ...existing code...
-// 전체 슬라이드 개수
-const totalSlides = computed(() => images.value.length + videoEmbeds.value.length)
-
-// 현재 활성화된 슬라이드 인덱스 (1-based)
-const currentSlide = computed(() => {
-  if (!swiperRef.value) return 1
-  return swiperRef.value.activeIndex + 1
-})
-
-// 숫자 네비게이션 이동 함수
-function goToSlide(idx) {
-  if (swiperRef.value) {
-    swiperRef.value.slideTo(idx)
-    pageInput.value = swiperRef.value.activeIndex + 1
-  }
-}
-import { ref, defineEmits, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, defineEmits, onUnmounted, onMounted } from 'vue'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Navigation, Pagination, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 
-// import icon - close,next,prev
 import IconClose from './icons/IconClose.vue'
 import IconNext from './icons/IconNext.vue'
 import IconPrev from './icons/IconPrev.vue'
@@ -33,302 +13,321 @@ import IconPrev from './icons/IconPrev.vue'
 const emit = defineEmits()
 
 const props = defineProps({
-  slide: {
-    type: Object,
-    required: true,
-  },
+  // slide가 "배열"일 수도, "단일 객체"일 수도 있다고 가정
+  slide: { type: [Array, Object], required: true },
 })
 
-const images = ref(props.slide.images || [])
-const loaded = ref([])
-const videoEmbeds = ref([])
-const players = ref([]) // YouTube player instances matching videoEmbeds order
+// (E) slide를 안전하게 배열화 + 역순
+const r_slides = computed(() => {
+  const arr = Array.isArray(props.slide) ? props.slide : [props.slide]
+  return [...arr].reverse()
+})
+
 const swiperRef = ref(null)
+const currentSwiperIndex = ref(0)
 const isNavOn = ref(false)
-let ytApiPromise = null
+const pageInput = ref(1)
+const swiperSectionNumbers = ref([
+  'BURST Film',
+  'BURST GROUP',
+  'HIGHLIGHT MEDLEY',
+  'ENERGY GROUP',
+  'ENERGY GISELLE',
+  'ENERGY WINTER',
+  'ENERGY KARINA',
+  'ENERGY NINGNING',
+  'Trailer',
+])
 
-// props.slide.images 변경 시 이미지와 로딩 상태 초기화
-watch(
-  () => props.slide?.images,
-  (val) => {
-    images.value = Array.isArray(val) ? val : []
-    loaded.value = Array.from({ length: images.value.length }, () => false)
-  },
-  { immediate: true },
-)
-
-// 유튜브 링크를 iframe embed URL로 변환
-function toYouTubeEmbed(url) {
-  if (!url) return null
-  url = url.trim()
-  // 이미 embed 형태면 그대로
-  if (/youtube\.com\/embed\//.test(url)) return appendYTParams(url)
-  // youtu.be 단축
-  const short = url.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/)
-  if (short) return appendYTParams(`https://www.youtube.com/embed/${short[1]}`)
-  // watch?v=
-  const watch = url.match(/[?&]v=([a-zA-Z0-9_-]{6,})/)
-  if (watch) return appendYTParams(`https://www.youtube.com/embed/${watch[1]}`)
-  // 그냥 ID로만 온 경우 (11자 기준) -> 허용
-  if (/^[a-zA-Z0-9_-]{6,}$/.test(url)) return appendYTParams(`https://www.youtube.com/embed/${url}`)
-  return null
+// r_slides 의 마지막 슬라이드에서 우측버튼을 눌렀을경우
+function firstSwiperPrev(e) {
+  if (e.currentTarget.classList.contains('swiper-button-disabled') && currentSwiperIndex.value > 0)
+    currentSwiperIndex.value--
 }
-
-function appendYTParams(base) {
-  const params = new URLSearchParams({
-    rel: '0',
-    enablejsapi: '1',
-    playsinline: '1',
-    autoplay: '0', // 자동 재생 비활성화
-  })
-  return base.includes('?') ? `${base}&${params.toString()}` : `${base}?${params.toString()}`
-}
-
-function buildVideoEmbeds() {
-  const list = []
-  if (Array.isArray(props.slide?.videos)) {
-    props.slide.videos.forEach((line) => {
-      const embed = toYouTubeEmbed(line)
-      if (embed) list.push(embed)
-    })
-  } else if (props.slide?.video) {
-    const single = toYouTubeEmbed(props.slide.video)
-    if (single) list.push(single)
+function lastSwiperNext(e) {
+  console.log(currentSwiperIndex.value, r_slides.value.length)
+  if (
+    e.currentTarget.classList.contains('swiper-button-disabled') &&
+    currentSwiperIndex.value < r_slides.value.length - 1
+  ) {
+    currentSwiperIndex.value++
   }
-  videoEmbeds.value = list
 }
+// r_slides 기준 각 블록의 시작 인덱스
+const rslideStartIndexes = computed(() => {
+  const arr = r_slides.value
+  if (!arr.length) return []
+  const indexes = []
+  let idx = 0
+  for (const r of arr) {
+    indexes.push(idx)
+    idx += (r.images?.length || 0) + (r.videos?.length || 0)
+  }
+  return indexes
+})
 
-watch(
-  () => [props.slide?.videos, props.slide?.video],
-  () => {
-    buildVideoEmbeds()
-    nextTick(async () => {
-      await ensureYT()
-      initPlayers()
-      // playActiveVideo()
-    })
-  },
-  { immediate: true },
-)
-
-function ensureYT() {
+// (B) YT API 로더: 전역 1회만
+let ytApiPromise = null
+function loadYouTubeAPI() {
   if (window.YT && window.YT.Player) return Promise.resolve()
-  if (ytApiPromise) return ytApiPromise
-  ytApiPromise = new Promise((resolve) => {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    document.head.appendChild(tag)
-    const prev = window.onYouTubeIframeAPIReady
-    window.onYouTubeIframeAPIReady = () => {
-      prev && prev()
-      resolve()
-    }
-  })
+  if (!ytApiPromise) {
+    ytApiPromise = new Promise((resolve) => {
+      if (window.onYouTubeIframeAPIReady) {
+        // 다른 곳에서 이미 세팅했을 수도 있음 → 바로 resolve
+        // (YT가 로드되면 window.YT 존재. 방어적으로 콜백 유지)
+        const prev = window.onYouTubeIframeAPIReady
+        window.onYouTubeIframeAPIReady = () => {
+          prev?.()
+          resolve()
+        }
+      } else {
+        window.onYouTubeIframeAPIReady = () => resolve()
+      }
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      document.head.appendChild(tag)
+    })
+  }
   return ytApiPromise
 }
 
-function initPlayers() {
-  // destroy previous
-  players.value.forEach((p) => {
+// (C) 활성 슬라이드에만 플레이어 생성/유지 (div 컨테이너 기반)
+let currentPlayer = null
+let currentVideoContainerId = null
+let currentVideoId = null
+
+function destroyCurrentPlayer() {
+  if (currentPlayer) {
     try {
-      p.destroy && p.destroy()
-    } catch (e) {}
-  })
-  players.value = []
-  let readyCount = 0
-  nextTick(() => {
-    videoEmbeds.value.forEach((_, idx) => {
-      const id = `yt-iframe-${idx}`
-      const el = document.getElementById(id)
-      if (!el) return
-      const player = new window.YT.Player(id, {
-        events: {
-          onReady: (e) => {
-            players.value[idx] = player
-            readyCount++
-            // 모든 player가 준비되면 playActiveVideo 실행
-            if (readyCount === videoEmbeds.value.length) {
-              // playActiveVideo()
-            }
-          },
-        },
-        playerVars: { modestbranding: 1, rel: 0, controls: 1 },
-      })
-    })
-  })
+      currentPlayer.destroy()
+    } catch {}
+  }
+  currentPlayer = null
+  currentVideoContainerId = null
+  currentVideoId = null
 }
 
-function safePlay(p) {
-  try {
-    p.unMute && p.unMute()
-    p.playVideo && p.playVideo()
-  } catch (e) {}
-}
-
-function pauseAll() {
-  players.value.forEach((p) => {
-    try {
-      p.pauseVideo && p.pauseVideo()
-    } catch (e) {}
-  })
-}
-
-// 현재 슬라이드가 비디오인지 확인하는 함수
-function isCurrentSlideVideo() {
-  if (!swiperRef.value) return false
-  // 이미지의 수를 구합니다
-  const imageCount = images.value.length
-  // 현재 활성화된 슬라이드의 인덱스
+async function ensureActiveSlidePlayer() {
+  if (!swiperRef.value) return
   const activeIndex = swiperRef.value.activeIndex
-
-  // 활성화된 슬라이드의 인덱스가 이미지 수보다 크거나 같으면 비디오 슬라이드입니다
-  // 현재 슬라이드가 비디오인 경우 videoIndex는 0부터 시작하는 비디오 배열 내 인덱스
-  if (swiperRef.value.slides[activeIndex].classList.contains('video-slide')) {
-    return activeIndex
+  const slideEl = swiperRef.value.slides[activeIndex]
+  if (!slideEl || !slideEl.classList.contains('video-slide')) {
+    destroyCurrentPlayer()
+    return
   }
 
-  return -1 // 비디오가 아닌 경우 -1 반환
-}
+  const container = slideEl.querySelector('.yt-player')
+  if (!container) return
+  const videoId = container.dataset.videoId
+  if (!videoId) return
 
-function playActiveVideo() {
-  const videoIndex = isCurrentSlideVideo()
+  // 동일 컨테이너 & 플레이어 존재 → 재생만
+  if (currentVideoContainerId === container.id && currentPlayer) {
+    try {
+      currentPlayer.playVideo()
+    } catch {}
+    return
+  }
 
-  // 현재 슬라이드가 비디오가 아니면 재생하지 않음
-  if (videoIndex === -1) return
-  // YouTube Player가 iframe에 attach되기까지 약간의 지연이 있을 수 있으므로 nextTick으로 보장
-  nextTick(() => {
-    const player = players.value[videoIndex]
-    if (player) safePlay(player)
-    setTimeout(() => {
-      if (player) safePlay(player)
-    }, 1000) // 0.5초 후에 다시 시도
+  // 기존 플레이어 제거 후 새로 생성
+  destroyCurrentPlayer()
+  await loadYouTubeAPI()
+  currentVideoContainerId = container.id
+  currentVideoId = videoId
+  currentPlayer = new window.YT.Player(container.id, {
+    videoId: videoId,
+    playerVars: {
+      playsinline: 1,
+      enablejsapi: 1,
+      modestbranding: 1,
+      rel: 0,
+      controls: 1,
+      origin: window.location.origin,
+    },
+    events: {
+      onReady: (e) => {
+        try {
+          e.target.mute()
+          e.target.playVideo()
+        } catch {}
+      },
+    },
   })
 }
 
-function onSwiper(swiper) {
+function pauseActiveVideo() {
+  if (currentPlayer) {
+    try {
+      currentPlayer.pauseVideo()
+    } catch {}
+  }
+}
+
+async function onSwiper(swiper) {
   swiperRef.value = swiper
-  // 초기에 활성화된 슬라이드가 비디오일 경우 강제로 재생 시도
+  await loadYouTubeAPI()
+  pauseActiveVideo()
+  ensureActiveSlidePlayer()
 }
 
 function onSlideChange(swiper) {
-  // 모든 비디오 일시 정지
-  pauseAll()
-  // 현재 활성화된 슬라이드가 비디오인지 확인
-  const videoIndex = isCurrentSlideVideo()
-  // 페이지 인디케이터 및 숫자 네비게이션 동기화
   pageInput.value = swiper.activeIndex + 1
-  // .num-btn active는 currentSlide computed가 자동 반영
-  if (videoIndex !== -1) {
-    const player = players.value[videoIndex]
-    if (player) safePlay(player)
-  }
+  pauseActiveVideo()
+}
+
+function onSlideChangeTransitionEnd() {
+  ensureActiveSlidePlayer()
 }
 
 onUnmounted(() => {
-  pauseAll()
-  players.value.forEach((p) => {
-    try {
-      p.destroy && p.destroy()
-    } catch (e) {}
-  })
+  destroyCurrentPlayer()
 })
 
-function onImgLoad(index) {
-  loaded.value[index] = true
+// (A) ORIGIN: playerVars.origin 으로 사용 (직접 iframe src 생성 제거됨)
+const ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
+
+// (D) iOS 감지하여 blur 비활성화
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+const closePopup = () => emit('close')
+
+// 네비게이션 점프
+function goToSlide(idx) {
+  if (swiperRef.value) {
+    swiperRef.value.slideTo(idx)
+    pageInput.value = swiperRef.value.activeIndex + 1
+  }
 }
 
-const closePopup = () => {
-  pauseAll()
-  emit('close')
+function r_slides_numbering() {
+  // swiperSectionNumbers.value
+  let sectionNumber = 0
+  r_slides.value.forEach((rslide, index) => {
+    if (index < r_slides.value.length - 1) {
+      sectionNumber += Number(rslide.images.length) + Number(rslide.videos.length)
+      swiperSectionNumbers.value.push(sectionNumber + 1)
+    }
+  })
 }
+
+onMounted(() => {
+  // r_slides_numbering()
+})
 </script>
+
 <template>
-  <div class="img-popup">
-    <Swiper
-      class="images"
-      :modules="[Navigation, Pagination, Keyboard]"
-      :slides-per-view="1"
-      :navigation="{
-        nextEl: '.swiper-button-next-custom',
-        prevEl: '.swiper-button-prev-custom',
-      }"
-      :keyboard="{ enabled: true }"
-      @swiper="onSwiper"
-      @slideChange="onSlideChange"
-    >
-      <!-- 숫자 네비게이션 -->
-      <div class="swiper-nav-toggler" @click="isNavOn = !isNavOn" :class="{ 'is-active': isNavOn }">
-        Navigation
-      </div>
-      <div class="swiper-number-nav" :class="{ 'is-active': isNavOn }">
-        <div
-          v-for="n in totalSlides"
-          :key="'num-nav-' + n"
-          :class="['num-btn', { active: pageInput === n }]"
-          @click="goToSlide(n - 1)"
+  <div class="img-popup" :class="{ 'no-blur': isIOS }">
+    <template v-for="(r_slide, i) in r_slides" :key="'r_slides-' + i">
+      <div class="swiper-container" v-if="i == currentSwiperIndex">
+        <Swiper
+          class="images"
+          :modules="[Navigation, Pagination, Keyboard]"
+          :slides-per-view="1"
+          :navigation="{
+            nextEl: '.swiper-button-next-custom',
+            prevEl: '.swiper-button-prev-custom',
+          }"
+          :keyboard="{ enabled: true }"
+          @swiper="onSwiper"
+          @slideChange="onSlideChange"
+          @slideChangeTransitionEnd="onSlideChangeTransitionEnd"
         >
-          {{ n }}
-        </div>
+          <div
+            class="swiper-nav-toggler"
+            @click="isNavOn = !isNavOn"
+            :class="{ 'is-active': isNavOn }"
+          >
+            Navigation
+          </div>
+          <div class="swiper-number-nav" :class="{ 'is-active': isNavOn }">
+            <div
+              v-for="(startIdx, i) in swiperSectionNumbers"
+              :key="'rslide-nav-' + i"
+              class="num-btn"
+              :class="{ active: currentSwiperIndex === i }"
+              @click="currentSwiperIndex = i"
+            >
+              {{ startIdx }}
+            </div>
+          </div>
+          <template v-if="r_slide.videoType === 'first'">
+            <!-- 비디오 먼저 -->
+            <SwiperSlide
+              class="video-slide"
+              v-for="(video, index) in r_slide.videos"
+              :key="'video-' + r_slide.id + index"
+            >
+              <div class="video-wrapper">
+                <div class="ratio-16x9">
+                  <div
+                    class="yt-player"
+                    :id="'yt-player-' + r_slide.id + '-' + index + '-first'"
+                    :data-video-id="video"
+                  ></div>
+                </div>
+              </div>
+            </SwiperSlide>
+            <SwiperSlide
+              v-for="(image, index) in r_slide.images"
+              :key="'image-' + r_slide.id + index"
+            >
+              <img :src="image" alt="Slide Image" loading="lazy" />
+            </SwiperSlide>
+          </template>
+          <template v-else-if="r_slide.videoType === 'last'">
+            <!-- 이미지 먼저 -->
+            <SwiperSlide
+              v-for="(image, index) in r_slide.images"
+              :key="'image-' + r_slide.id + index"
+            >
+              <img :src="image" alt="Slide Image" loading="lazy" />
+            </SwiperSlide>
+            <SwiperSlide
+              class="video-slide"
+              v-for="(video, index) in r_slide.videos"
+              :key="'video-' + r_slide.id + index"
+            >
+              <div class="video-wrapper">
+                <div class="ratio-16x9">
+                  <div
+                    class="yt-player"
+                    :id="'yt-player-' + r_slide.id + '-' + index + '-last'"
+                    :data-video-id="video"
+                  ></div>
+                </div>
+              </div>
+            </SwiperSlide>
+          </template>
+          <template v-else-if="(r_slide.videos?.length || 0) < 1">
+            <SwiperSlide
+              v-for="(image, index) in r_slide.images"
+              :key="'image-' + r_slide.id + index"
+            >
+              <img :src="image" alt="Slide Image" loading="lazy" />
+            </SwiperSlide>
+          </template>
+          <template v-else-if="(r_slide.images?.length || 0) < 1">
+            <SwiperSlide
+              class="video-slide"
+              v-for="(video, index) in r_slide.videos"
+              :key="'video-' + r_slide.id + index"
+            >
+              <div class="video-wrapper">
+                <div class="ratio-16x9">
+                  <div
+                    class="yt-player"
+                    :id="'yt-player-' + r_slide.id + '-' + index + '-only'"
+                    :data-video-id="video"
+                  ></div>
+                </div>
+              </div>
+            </SwiperSlide>
+          </template>
+        </Swiper>
+        <div class="close" @click="closePopup"><IconClose /></div>
+        <div class="swiper-button-prev-custom" @click="firstSwiperPrev"><IconPrev /></div>
+        <div class="swiper-button-next-custom" @click="lastSwiperNext"><IconNext /></div>
       </div>
-      <template v-for="(image, index) in images" :key="'img-3-' + index">
-        <SwiperSlide v-if="index <= 2">
-          <img
-            :src="image"
-            :class="{ 'is-loaded': loaded[index] }"
-            alt="Slide Image"
-            loading="lazy"
-            @load="onImgLoad(index)"
-          />
-        </SwiperSlide>
-      </template>
-      <SwiperSlide class="video-slide">
-        <div class="video-wrapper">
-          <div class="ratio-16x9">
-            <iframe
-              :id="'yt-iframe-' + 0"
-              :src="videoEmbeds[0]"
-              title="YouTube video"
-              frameborder="0"
-              allow="autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen
-            ></iframe>
-          </div>
-        </div>
-      </SwiperSlide>
-      <template v-for="(image, index) in images" :key="'img-2-' + index">
-        <SwiperSlide v-if="index > 2">
-          <img
-            :src="image"
-            :class="{ 'is-loaded': loaded[index] }"
-            alt="Slide Image"
-            loading="lazy"
-            @load="onImgLoad(index)"
-          />
-        </SwiperSlide>
-      </template>
-      <SwiperSlide class="video-slide">
-        <div class="video-wrapper">
-          <div class="ratio-16x9">
-            <iframe
-              :id="'yt-iframe-' + 1"
-              :src="videoEmbeds[1]"
-              title="YouTube video"
-              frameborder="0"
-              allow="autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen
-            ></iframe>
-          </div>
-        </div>
-      </SwiperSlide>
-    </Swiper>
-    <div class="close" @click="closePopup"><IconClose /></div>
-    <!-- 커스텀 네비게이션 버튼 -->
-    <div class="swiper-button-prev-custom">
-      <IconPrev />
-    </div>
-    <div class="swiper-button-next-custom">
-      <IconNext />
-    </div>
+    </template>
   </div>
 </template>
 <style scoped lang="scss">
@@ -381,13 +380,14 @@ const closePopup = () => {
   font-size: 14px;
   z-index: 30;
 }
+
+.swiper-container {
+  height: 100%;
+}
 .images img {
   width: 150px;
-  opacity: 0;
-  transition: opacity 300ms ease;
-}
-.images img.is-loaded {
   opacity: 1;
+  transition: opacity 300ms ease;
 }
 .img-popup :deep(.swiper) {
   width: 100%;
@@ -452,7 +452,7 @@ const closePopup = () => {
   }
 
   .swiper-button-disabled {
-    opacity: 0.5;
+    // opacity: 0.5;
   }
 
   .swiper {
@@ -475,12 +475,12 @@ const closePopup = () => {
         width: 100%;
         background: transparent;
         aspect-ratio: 16 / 9;
-        iframe {
+        :deep(.yt-player) {
           position: absolute;
           inset: 0;
           width: 100%;
-          object-fit: contain;
           height: 100%;
+          object-fit: contain;
         }
       }
     }
@@ -529,6 +529,15 @@ const closePopup = () => {
       img {
         padding: 10px;
       }
+    }
+  }
+
+  .swiper-number-nav {
+    gap: 8px;
+    .num-btn {
+      font-size: 14px;
+      padding: 2px 7px;
+      white-space: nowrap;
     }
   }
 }
