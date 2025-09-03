@@ -28,6 +28,7 @@ const currentSwiperIndex = ref(0)
 const isNavOn = ref(false)
 const pageInput = ref(1)
 const swiperSectionNumbers = ref([
+  'M/V Teaser',
   'BURST WINTER',
   'BURST GISELLE',
   'BURST NINGNING',
@@ -242,17 +243,7 @@ onMounted(() => {
           >
             Navigation
           </div>
-          <div class="swiper-number-nav" :class="{ 'is-active': isNavOn }">
-            <div
-              v-for="(startIdx, i) in swiperSectionNumbers"
-              :key="'rslide-nav-' + i"
-              class="num-btn"
-              :class="{ active: currentSwiperIndex === i }"
-              @click="currentSwiperIndex = i"
-            >
-              {{ startIdx }}
-            </div>
-          </div>
+
           <template v-if="r_slide.videoType === 'first'">
             <!-- 비디오 먼저 -->
             <SwiperSlide
@@ -332,6 +323,17 @@ onMounted(() => {
         <div class="swiper-button-next-custom" @click="lastSwiperNext"><IconNext /></div>
       </div>
     </template>
+    <div class="swiper-number-nav" :class="{ 'is-active': isNavOn }">
+      <div
+        v-for="(startIdx, i) in swiperSectionNumbers"
+        :key="'rslide-nav-' + i"
+        class="num-btn"
+        :class="{ active: currentSwiperIndex === i }"
+        @click="currentSwiperIndex = i"
+      >
+        {{ startIdx }}
+      </div>
+    </div>
   </div>
 </template>
 <style scoped lang="scss">
@@ -365,6 +367,7 @@ onMounted(() => {
     font-family: 'Acumin-variable', sans-serif;
     font-weight: 550;
     background: rgba(0, 0, 0, 1);
+    white-space: nowrap;
     &.active {
       background: white;
       color: black;
