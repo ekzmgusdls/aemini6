@@ -28,6 +28,7 @@ const currentSwiperIndex = ref(0)
 const isNavOn = ref(false)
 const pageInput = ref(1)
 const swiperSectionNumbers = ref([
+  'M/V',
   'M/V Teaser',
   'BURST WINTER',
   'BURST GISELLE',
